@@ -104,6 +104,48 @@ public class RoleManagementActionListener extends AbstractRoleManagementListener
         if (!isEnable() || !isEventAssociatedWithWorkflow(UserStoreWFConstants.UPDATE_ROLE_V2_USERS_EVENT)) {
             return;
         }
+
+        // --- START NEW RULE IMPLEMENTATION ---
+        try {
+            // 1. Prepare the Context Data
+            Map<String, Object> contextData = new HashMap<>();
+
+            // HACK FOR TESTING:
+            // We are checking if the role being updated is "Internal/system".
+            // If it is, we pass "password" so the rule matches.
+            // Otherwise, we pass "dummy" so the rule fails.
+            // This simulates: "If Role is system, trigger the workflow"
+            if ("Internal/system".equals(roleId)) {
+                contextData.put("grantType", "password"); // Matches your Rule 11
+            } else {
+                contextData.put("grantType", "dummy");
+            }
+
+            // 2. Create Flow Context
+            FlowContext flowContext = new FlowContext(FlowType.PRE_UPDATE_USER_LIST_OF_ROLE, contextData);
+
+            // 3. Call the Rule Evaluation Service
+            // Note: You need to ensure RuleEvaluationService is available in IdentityWorkflowDataHolder
+            RuleEvaluationService ruleEvalService = IdentityWorkflowDataHolder.getInstance().getRuleEvaluationService();
+
+            if (ruleEvalService != null) {
+                // Using Rule ID "11" as you requested
+                RuleEvaluationResult result = ruleEvalService.evaluate("11", flowContext, tenantDomain);
+
+                // 4. Decision Point
+                if (!result.isRuleSatisfied()) {
+                    // If rule is NOT satisfied (False), we skip the workflow and allow the operation immediately.
+                    return;
+                }
+                // If rule IS satisfied (True), we proceed to the code below to engage the workflow.
+            }
+        } catch (Exception e) {
+            // Log and decide: Fail open (allow operation) or Fail closed (block)?
+            // For now, we log and let the workflow engage as a fallback, or rethrow.
+            throw new IdentityRoleManagementException("Error evaluating rule", e);
+        }
+        // --- END NEW RULE IMPLEMENTATION ---
+
         // If both new and deleted user lists are empty after filtering, return.
         if (containsOnlyAgentUsers(newUserIDList, deletedUserIDList)) {
             return;

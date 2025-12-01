@@ -57,6 +57,22 @@ import org.wso2.carbon.utils.ConfigurationContextService;
         immediate = true)
 public class IdentityWorkflowServiceComponent {
 
+    @Activate
+    protected void activate(ComponentContext context) {
+        try {
+            BundleContext bundleContext = context.getBundleContext();
+
+            // ... existing registrations ...
+
+            // REGISTER THE NEW DATA PROVIDER
+            bundleContext.registerService(RuleEvaluationDataProvider.class,
+                    new PreUpdateUserListOfRoleRuleEvaluationDataProvider(), null);
+
+        } catch (Throwable e) {
+            log.error("Failed to start the WorkflowMgtServiceComponent", e);
+        }
+    }
+
     @Reference(
             name = "user.realmservice.default",
             service = org.wso2.carbon.user.core.service.RealmService.class,
