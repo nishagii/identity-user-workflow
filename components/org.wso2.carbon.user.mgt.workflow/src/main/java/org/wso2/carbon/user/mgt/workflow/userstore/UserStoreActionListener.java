@@ -386,6 +386,31 @@ public class UserStoreActionListener extends AbstractIdentityUserOperationEventL
     }
 
     @Override
+    public boolean doPreUpdateUserListOfRoleWithID(String roleName, String[] deletedUsersIDs, String[]
+            newUsersIDs, UserStoreManager userStoreManager) throws UserStoreException {
+
+        if (!isEnable() || isCalledViaIdentityMgtListners()
+                || !isEventAssociatedWithWorkflow(UserStoreWFConstants.UPDATE_GROUP_USERS_EVENT)) {
+            return true;
+        }
+        try {
+            String[] newUserNames = getUserNamesFromUserIDs(newUsersIDs, (AbstractUserStoreManager) userStoreManager);
+            String[] deletedUserNames = getUserNamesFromUserIDs(deletedUsersIDs,
+                    (AbstractUserStoreManager) userStoreManager);
+            UpdateGroupUsersWFRequestHandler updateGroupUsersWFRequestHandler =
+                    new UpdateGroupUsersWFRequestHandler();
+            String domain = userStoreManager.getRealmConfiguration().getUserStoreProperty(UserCoreConstants.RealmConfig
+                    .PROPERTY_DOMAIN_NAME);
+
+            return updateGroupUsersWFRequestHandler.startUpdateGroupUsersFlow(domain, roleName, deletedUserNames,
+                    newUserNames);
+        } catch (WorkflowException e) {
+            // Sending e.getMessage() since it is required to give error message to end user.
+            throw new UserStoreException(e.getMessage(), e);
+        }
+    }
+
+    @Override
     public boolean doPreUpdateUserListOfRole(String roleName, String[] deletedUsers, String[] newUsers, UserStoreManager
             userStoreManager) throws UserStoreException {
 
